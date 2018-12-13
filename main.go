@@ -18,8 +18,39 @@ func main() {
 
 	router.HandleFunc("/healthcheck", healthCheck).Methods("GET")
 	router.HandleFunc("/vms", GetVMs).Methods("GET")
+	router.HandleFunc("/vms/{name}", GetVM).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), router))
+}
+
+func GetVM(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	if len(name) == 0 {
+		respondWithError(w, http.StatusBadRequest, "Invalid virtual machine name")
+		return
+	}
+
+	ctx := context.Background()
+
+	c, err := client.NewClient(ctx)
+	if err != nil {
+		log.Fatal(err)
+		respondWithError(w, http.StatusFailedDependency, err.Error())
+		return
+	}
+
+	defer c.Logout(ctx)
+
+	vm, err := c.GetVM(ctx, name)
+	if err != nil {
+		log.Fatal(err)
+		respondWithError(w, http.StatusFailedDependency, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{"result": vm.Summary.Config})
 }
 
 func GetVMs(w http.ResponseWriter, r *http.Request) {
