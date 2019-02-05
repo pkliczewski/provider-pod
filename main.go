@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/pkliczewski/provider-pod/client"
@@ -23,6 +25,7 @@ func main() {
 	router.HandleFunc("/vms/{name}", GetVM).Methods("GET")
 	router.HandleFunc("/ssh", GetSshPrint).Methods("POST")
 	router.HandleFunc("/sshcheck", GetSshCheck).Methods("GET")
+	router.HandleFunc("/tlscheck", GetTlsCheck).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), router))
 }
@@ -37,14 +40,21 @@ type findgerPrint struct {
 	Value string
 }
 
+func GetTlsCheck(w http.ResponseWriter, r *http.Request) {
+	respondWithJSON(w, http.StatusOK, map[string]string{"result": strconv.FormatBool(getCheck(443, r.Body))})
+}
+
 func GetSshCheck(w http.ResponseWriter, r *http.Request) {
+	respondWithJSON(w, http.StatusOK, map[string]string{"result": strconv.FormatBool(getCheck(22, r.Body))})
+}
+
+func getCheck(port int, body io.ReadCloser) bool {
 	var conf sshDetails
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(body)
 	if err := decoder.Decode(&conf); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
-		return
+		return false
 	}
-	defer r.Body.Close()
+	defer body.Close()
 
 	sshConfig := &ssh.ClientConfig{
 		User: conf.User,
@@ -52,15 +62,13 @@ func GetSshCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", conf.Hostname), sshConfig)
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", conf.Hostname, port), sshConfig)
 	if err != nil {
-		respondWithJSON(w, http.StatusOK, map[string]string{"result": "false"})
-		return
+		return false
 	}
 
 	defer client.Close()
-
-	respondWithJSON(w, http.StatusOK, map[string]string{"result": "true"})
+	return true
 }
 
 func GetSshPrint(w http.ResponseWriter, r *http.Request) {
