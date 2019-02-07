@@ -21,11 +21,11 @@ func main() {
 	var router = mux.NewRouter()
 
 	router.HandleFunc("/healthcheck", healthCheck).Methods("GET")
-	router.HandleFunc("/vms", GetVMs).Methods("GET")
-	router.HandleFunc("/vms/{name}", GetVM).Methods("GET")
-	router.HandleFunc("/ssh", GetSshPrint).Methods("POST")
-	router.HandleFunc("/sshcheck", GetSshCheck).Methods("GET")
-	router.HandleFunc("/tlscheck", GetTlsCheck).Methods("GET")
+	router.HandleFunc("/vms", use(GetVMs, auth)).Methods("GET")
+	router.HandleFunc("/vms/{name}", use(GetVM, auth)).Methods("GET")
+	router.HandleFunc("/ssh", use(GetSshPrint, auth)).Methods("POST")
+	router.HandleFunc("/sshcheck", use(GetSshCheck, auth)).Methods("GET")
+	router.HandleFunc("/tlscheck", use(GetTlsCheck, auth)).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), router))
 }
@@ -38,6 +38,27 @@ type sshDetails struct {
 
 type findgerPrint struct {
 	Value string
+}
+
+func use(h http.HandlerFunc, middleware ...func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
+	for _, m := range middleware {
+		h = m(h)
+	}
+
+	return h
+}
+
+func auth(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		token := r.Header.Get("Authorization")
+		if token != os.Getenv("TOKEN") {
+			http.Error(w, "Not authorized", 401)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	}
 }
 
 func GetTlsCheck(w http.ResponseWriter, r *http.Request) {
