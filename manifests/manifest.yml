@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pod-config
+type: Opaque
+data:
+  url: {{vmware address}}
+  username: {{admin username}}
+  password: {{admin password}}
+  token: {{api authentication token}}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: provider-pod-
+  namespace: default
+  labels:
+    app: provider-pod
+spec:
+  containers:
+  - name: provider-pod
+    image: quay.io/pkliczewski/provider-pod:latest
+    env:
+      - name : SERVER_PORT
+        value: "8080"
+      - name: URL
+        valueFrom:
+          secretKeyRef:
+            name: pod-config
+            key: url
+      - name: USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: pod-config
+            key: username
+      - name: PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: pod-config
+            key: password
+      - name: TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: pod-config
+            key: token
+  restartPolicy: Never
+---                       
+kind: Service             
+apiVersion: v1        
+metadata:             
+  generateName: provider-pod-service-
+  namespace: default
+spec:                                
+  selector:                          
+    app: provider-pod                
+  type: NodePort                     
+  ports:             
+  - protocol: TCP    
+    port: 8080       
+    targetPort: 8080
+    nodePort: 30001  

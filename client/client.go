@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"net/url"
+	"os"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/property"
@@ -66,9 +67,9 @@ func (c *Client) Logout(ctx context.Context) error {
 }
 
 func NewClient(ctx context.Context) (*Client, error) {
-	host := ""
-	username := ""
-	password := ""
+	host := os.Getenv("URL")
+	username := os.Getenv("USERNAME")
+	password := os.Getenv("PASSWORD")
 	insecure := true
 
 	u := &url.URL{
