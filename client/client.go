@@ -53,7 +53,7 @@ func (c *Client) GetVM(ctx context.Context, name string) (mo.VirtualMachine, err
 	defer v.Destroy(ctx)
 
 	// Reference: http://pubs.vmware.com/vsphere-60/topic/com.vmware.wssdk.apiref.doc/vim.VirtualMachine.html
-	err = v.RetrieveWithFilter(ctx, []string{"VirtualMachine"}, []string{"summary"}, &vm, property.Filter{"summary.config.name": name})
+	err = v.RetrieveWithFilter(ctx, []string{"VirtualMachine"}, []string{"config", "summary"}, &vm, property.Filter{"summary.config.name": name})
 	if err != nil {
 		return vm, err
 	}
